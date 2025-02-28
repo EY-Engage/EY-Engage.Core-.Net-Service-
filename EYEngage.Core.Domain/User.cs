@@ -13,10 +13,7 @@ namespace EYEngage.Core.Domain
     public class User : IdentityUser<Guid>
     {
         [Required, MaxLength(100)]
-        public string FirstName { get; set; }
-
-        [Required, MaxLength(100)]
-        public string LastName { get; set; }
+        public string FullName { get; set; }
 
         [MaxLength(500)]
         public string? ProfilePicture { get; set; }

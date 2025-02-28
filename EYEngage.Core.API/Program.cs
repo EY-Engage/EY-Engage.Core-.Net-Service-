@@ -1,51 +1,52 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using EYEngage.Core.Domain;
+using EYEngage.Core.Application.Services;
+using EYEngage.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using EYEngage.Core.Infrastructure;
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using EYEngage.Core.Application;
 using System.Text;
-
+using EYEngage.Core.Application.InterfacesServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configuration de la base de données
+builder.Services.AddDbContext<EYEngageDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("EYEngageDatabase")));
 
+// Configuration d'Identity et de l'authentification
+builder.Services.AddIdentity<User, Role>()
+    .AddEntityFrameworkStores<EYEngageDbContext>()
+    .AddDefaultTokenProviders();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll",
-        builder =>
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            builder.AllowAnyOrigin()
-                   .AllowAnyMethod()
-                   .AllowAnyHeader();
-        });
-});
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"])),
+            ValidateIssuer = true,
+            ValidateAudience = true
+        };
+    });
 
-// Ajout des services MVC et Swagger
+// Enregistrement des services applicatifs
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
-
-// Configuration de la pipeline HTTP
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-// Activation de CORS
-app.UseCors("AllowAll");
-
-// Ajout de l'authentification et de l'autorisation
 app.UseAuthentication();
 app.UseAuthorization();
-
-// Mapping des contrôleurs
 app.MapControllers();
-
-// Lancer l'application
 app.Run();
