@@ -1,19 +1,16 @@
 ﻿using EYEngage.Core.Application.Dto.RoleDtos;
 using EYEngage.Core.Application.InterfacesServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace EYEngage.Core.API.Controllers
-{
+namespace EYEngage.Core.API.Controllers;
+
     [ApiController]
     [Route("api/roles")]
-    public class RoleController : ControllerBase
+    [Authorize(Roles = "SuperAdmin")]
+    public class RoleController(IRoleService _roleService) : ControllerBase
     {
-        private readonly IRoleService _roleService;
-
-        public RoleController(IRoleService roleService)
-        {
-            _roleService = roleService;
-        }
+   
 
         [HttpPost("create")]
         public async Task<IActionResult> CreateRole([FromBody] RoleCreateRequestDto request)
@@ -35,4 +32,3 @@ namespace EYEngage.Core.API.Controllers
             return Ok(response);
         }
     }
-}

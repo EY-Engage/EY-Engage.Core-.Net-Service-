@@ -1,19 +1,33 @@
 ﻿using EYEngage.Core.Domain;
+using EYEngage.Core.Application.Services;
 using EYEngage.Infrastructure;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using EYEngage.Core.Application.InterfacesServices;
+using System.Security.Claims;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("NextJsFrontend",
+        builder => builder
+            .WithOrigins("http://localhost:3000") 
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials());
+});
 
-// 🔹 Configuration de la connexion à la base de données
+
+// Configuration de la base de données
 builder.Services.AddDbContext<EYEngageDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("EYEngageDatabase")));
 
-// 🔹 Ajout de l’authentification Identity
-builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
+// Configuration d'Identity et de l'authentification
+builder.Services.AddIdentity<User, Role>(options => 
 {
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
@@ -21,46 +35,55 @@ builder.Services.AddIdentity<User, IdentityRole<Guid>>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
 })
-    .AddEntityFrameworkStores<EYEngageDbContext>()
-    .AddDefaultTokenProviders();
+.AddEntityFrameworkStores<EYEngageDbContext>()
+.AddDefaultTokenProviders();
 
-// 🔹 Ajout de l’authentification JWT
-var key = Encoding.UTF8.GetBytes(builder.Configuration["Secret"]);
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false;
-        options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            ValidateIssuer = false,
-            ValidateAudience = false,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"])),
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["JwtSettings:Audience"],
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
+            RoleClaimType = ClaimTypes.Role
         };
     });
 
+// Enregistrement des services applicatifs
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IUserService, UserService>();
+
 builder.Services.AddControllers();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("SuperAdminOnly", policy =>
+        policy.RequireRole("SuperAdmin"));
+
+    options.AddPolicy("AdminOrSuperAdmin", policy =>
+        policy.RequireRole("Admin", "SuperAdmin"));
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// 🔹 Activation de Swagger
+app.UseStaticFiles();
+app.UseRouting(); 
+app.UseCors("NextJsFrontend");
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-app.UseAuthentication();
-app.UseAuthorization();
 app.MapControllers();
-
 app.Run();

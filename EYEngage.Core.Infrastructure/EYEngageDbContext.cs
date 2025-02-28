@@ -3,15 +3,14 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using System;
 
-namespace EYEngage.Infrastructure
-{
-    public class EYEngageDbContext : IdentityDbContext<User, Role, Guid>
-    {
-        public EYEngageDbContext(DbContextOptions<EYEngageDbContext> options) : base(options) { }
+namespace EYEngage.Infrastructure;
 
-        protected override void OnModelCreating(ModelBuilder builder)
-        {
-            base.OnModelCreating(builder);
-        }
+public class EYEngageDbContext : IdentityDbContext<User, Role, Guid>
+{
+    public EYEngageDbContext(DbContextOptions<EYEngageDbContext> options) : base(options) { }
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
     }
 }

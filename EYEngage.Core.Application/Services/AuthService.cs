@@ -12,48 +12,60 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EYEngage.Core.Application.Services
+namespace EYEngage.Core.Application.Services;
+
+public class AuthService(UserManager<User> _userManager, IConfiguration _configuration) : IAuthService
 {
-    public class AuthService : IAuthService
+    public async Task<string> RegisterAsync(RegisterRequestDto request)
     {
-        private readonly UserManager<User> _userManager;
-        private readonly IConfiguration _configuration;
+        var user = new User { FullName = request.FullName, Email = request.Email, UserName = request.Email };
+        var result = await _userManager.CreateAsync(user, request.Password);
 
-        public AuthService(UserManager<User> userManager, IConfiguration configuration)
+        if (!result.Succeeded)
+            throw new Exception("Échec de l'inscription");
+        await _userManager.AddToRoleAsync(user, "EmployeeEY");
+
+        return "Utilisateur créé avec succès";
+    }
+
+    public async Task<LoginResponseDto?> LoginAsync(LoginRequestDto request)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user == null) return null;
+
+        var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+        if (!isPasswordValid) return null;
+
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var claims = new List<Claim>
+{
+    new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+    new Claim(JwtRegisteredClaimNames.Email, user.Email),
+    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+};
+
+        foreach (var role in roles)
         {
-            _userManager = userManager;
-            _configuration = configuration;
+            claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        public async Task<RegisterResponseDto> RegisterAsync(RegisterRequestDto request)
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:Secret"]));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: _configuration["JwtSettings:Issuer"],
+            audience: _configuration["JwtSettings:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(3),
+            signingCredentials: creds
+        );
+
+        return new LoginResponseDto
         {
-            var user = new User { FullName = request.FullName, Email = request.Email, UserName = request.Email };
-            var result = await _userManager.CreateAsync(user, request.Password);
-
-            if (!result.Succeeded)
-                throw new Exception("Échec de l'inscription");
-            await _userManager.AddToRoleAsync(user, "EmployeeEY");
-
-            return new RegisterResponseDto { Message = "Utilisateur créé avec succès" };
-        }
-
-        public async Task<LoginResponseDto?> LoginAsync(LoginRequestDto request)
-        {
-            var user = await _userManager.FindByEmailAsync(request.Email);
-            if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
-                return null;
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_configuration["JwtSettings:Secret"]);
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, user.Id.ToString()) }),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256)
-            };
-
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return new LoginResponseDto { Token = tokenHandler.WriteToken(token) };
-        }
+            Token = new JwtSecurityTokenHandler().WriteToken(token),
+            Email = user.Email,
+            Roles = roles.ToList()
+        };
     }
 }

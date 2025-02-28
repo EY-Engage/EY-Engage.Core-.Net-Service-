@@ -5,11 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EYEngage.Core.Application.InterfacesServices
+namespace EYEngage.Core.Application.InterfacesServices;
+
+public interface IRoleService
 {
-    public interface IRoleService
-    {
-        Task<RoleCreateResponseDto> AddRoleAsync(RoleCreateRequestDto request);
-        Task<RoleAssignResponseDto> AssignRoleToUserAsync(RoleAssignRequestDto request);
-    }
+    Task<RoleCreateResponseDto> AddRoleAsync(RoleCreateRequestDto request);
+    Task<RoleAssignResponseDto> AssignRoleToUserAsync(RoleAssignRequestDto request);
 }

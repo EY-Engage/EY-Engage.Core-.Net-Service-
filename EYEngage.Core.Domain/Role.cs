@@ -1,9 +1,8 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using System;
 
-namespace EYEngage.Core.Domain
+namespace EYEngage.Core.Domain;
+
+public class Role : IdentityRole<Guid>
 {
-    public class Role : IdentityRole<Guid>
-    {
-    }
 }

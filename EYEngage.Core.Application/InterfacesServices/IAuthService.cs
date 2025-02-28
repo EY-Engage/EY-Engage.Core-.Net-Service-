@@ -5,11 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EYEngage.Core.Application.InterfacesServices
+namespace EYEngage.Core.Application.InterfacesServices;
+
+public interface IAuthService
 {
-    public interface IAuthService
-    {
-        Task<RegisterResponseDto> RegisterAsync(RegisterRequestDto request);
-        Task<LoginResponseDto?> LoginAsync(LoginRequestDto request);
-    }
+    Task<string> RegisterAsync(RegisterRequestDto request);
+    Task<LoginResponseDto?> LoginAsync(LoginRequestDto request);
 }
