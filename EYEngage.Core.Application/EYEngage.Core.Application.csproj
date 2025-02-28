@@ -16,4 +16,8 @@
     <ProjectReference Include="..\EYEngage.Core.Infrastructure\EYEngage.Core.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Dto\NewFolder\" />
+  </ItemGroup>
+
 </Project>

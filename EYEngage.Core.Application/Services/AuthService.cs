@@ -32,6 +32,7 @@ namespace EYEngage.Core.Application.Services
 
             if (!result.Succeeded)
                 throw new Exception("Échec de l'inscription");
+            await _userManager.AddToRoleAsync(user, "EmployeeEY");
 
             return new RegisterResponseDto { Message = "Utilisateur créé avec succès" };
         }
