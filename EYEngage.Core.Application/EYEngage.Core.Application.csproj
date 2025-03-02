@@ -16,10 +16,4 @@
     <ProjectReference Include="..\EYEngage.Core.Infrastructure\EYEngage.Core.Infrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Dto\" />
-    <Folder Include="InterfacesServices\" />
-    <Folder Include="Services\" />
-  </ItemGroup>
-
 </Project>
