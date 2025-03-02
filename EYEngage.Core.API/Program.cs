@@ -8,26 +8,29 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using EYEngage.Core.Application.InterfacesServices;
 using System.Security.Claims;
-using Microsoft.Extensions.Options;
+using EYEngage.Core.API.Authorization;
+using Microsoft.AspNetCore.Authorization;
+using EYEngage.Core.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configuration CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("NextJsFrontend",
         builder => builder
-            .WithOrigins("http://localhost:3000") 
+            .WithOrigins("http://localhost:3000")
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials());
 });
 
-
 // Configuration de la base de données
 builder.Services.AddDbContext<EYEngageDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("EYEngageDatabase")));
 
-// Configuration d'Identity et de l'authentification
-builder.Services.AddIdentity<User, Role>(options => 
+// Configuration d'Identity
+builder.Services.AddIdentityCore<User>(options =>
 {
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
@@ -35,9 +38,11 @@ builder.Services.AddIdentity<User, Role>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireLowercase = true;
 })
+.AddRoles<Role>()
 .AddEntityFrameworkStores<EYEngageDbContext>()
 .AddDefaultTokenProviders();
 
+// Configuration JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -45,7 +50,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"])),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                builder.Configuration["JwtSettings:Secret"])),
             ValidateIssuer = true,
             ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
             ValidateAudience = true,
@@ -55,27 +61,31 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Enregistrement des services applicatifs
+// Enregistrement des services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
-builder.Services.AddControllers();
+// Configuration Authorization
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("SuperAdminOnly", policy =>
-        policy.RequireRole("SuperAdmin"));
-
-    options.AddPolicy("AdminOrSuperAdmin", policy =>
-        policy.RequireRole("Admin", "SuperAdmin"));
+    options.AddPolicy("SuperAdminPolicy", policy =>
+        policy.Requirements.Add(new SuperAdminRequirement()));
 });
+
+// Enregistrement des handlers d'autorisation avec la bonne durée de vie
+builder.Services.AddScoped<IAuthorizationHandler, SuperAdminAuthorizationHandler>();
+
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Middleware pipeline
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseStaticFiles();
-app.UseRouting(); 
+app.UseRouting();
 app.UseCors("NextJsFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
@@ -85,5 +95,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 app.MapControllers();
+
 app.Run();

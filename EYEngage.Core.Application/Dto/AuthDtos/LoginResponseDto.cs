@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace EYEngage.Core.Application.Dto.AuthDtos;
 
-namespace EYEngage.Core.Application.Dto.AuthDtos
+public record LoginResponseDto
 {
-    public class LoginResponseDto
-    {
-        public string Token { get; set; } = null!;
-        public string Email { get; internal set; }
-        public List<string> Roles { get; internal set; }
-    }
+    public string Token { get; set; } = null!;
+    public string Email { get; internal set; }
+    public List<string> Roles { get; internal set; }
 }

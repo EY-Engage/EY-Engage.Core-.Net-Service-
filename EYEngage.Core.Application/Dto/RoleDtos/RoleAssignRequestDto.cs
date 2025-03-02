@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace EYEngage.Core.Application.Dto.RoleDtos;
 
-namespace EYEngage.Core.Application.Dto.RoleDtos
+public record RoleAssignRequestDto
 {
-    public class RoleAssignRequestDto
-    {
-        public Guid UserId { get; set; }
-        public string RoleName { get; set; } = null!;
-    }
+    public Guid UserId { get; set; }
+    public string RoleName { get; set; } = null!;
 }

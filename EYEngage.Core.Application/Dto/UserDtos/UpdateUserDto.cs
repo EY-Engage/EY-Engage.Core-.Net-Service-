@@ -2,7 +2,7 @@
 
 namespace EYEngage.Core.Application.Dto;
 
-public class UpdateUserDto
+public record UpdateUserDto
 {
     public string FullName { get; set; }
     public IFormFile? ProfilePictureFile { get; set; }

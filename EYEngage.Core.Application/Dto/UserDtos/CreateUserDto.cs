@@ -2,7 +2,7 @@
 
 namespace EYEngage.Core.Application.Dto;
 
-public class CreateUserDto
+public record CreateUserDto
 {
     public string FullName { get; set; } = null!;
     public string Email { get; set; } = null!;

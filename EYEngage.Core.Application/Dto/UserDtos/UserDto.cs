@@ -1,8 +1,6 @@
-﻿using System;
+﻿namespace EYEngage.Core.Application.Dto;
 
-namespace EYEngage.Core.Application.Dto;
-
-public class UserDto
+public record UserDto
 {
     public Guid Id { get; set; }
     public string FullName { get; set; } = null!;

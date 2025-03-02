@@ -1,7 +1,6 @@
 ﻿using EYEngage.Core.Domain;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using System;
 
 namespace EYEngage.Infrastructure;
 
