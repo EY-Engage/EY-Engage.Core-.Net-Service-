@@ -1,0 +1,37 @@
+# Fichiers et dossiers générés par Visual Studio
+.vs/
+*.user
+*.suo
+*.vscode/
+
+# Build et binaires
+bin/
+obj/
+out/
+
+# Paquets NuGet et cache
+packages/
+*.nupkg
+project.lock.json
+project.assets.json
+logs/
+*.log
+
+# Fichiers de configuration de l'environnement local
+*.local.settings.json
+appsettings.Development.json
+
+# Fichiers de déploiement et de configuration
+.DS_Store
+Thumbs.db
+
+# Fichiers temporaires de Visual Studio
+*.tlog
+*.lastcodeanalysissucceeded
+
+# Fichiers de dépendances
+node_modules/
+bower_components/
+
+# Fichiers de logs
+*.log
