@@ -31,6 +31,18 @@ builder.Services.AddCors(options =>
         .SetIsOriginAllowed(origin => true);
     });
 });
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowNestJS", builder =>
+    {
+        builder
+            .WithOrigins("http://localhost:3001") // URL de NestJS
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
+    });
+});
+
 
 // 2) Base de données avec optimisations pour éviter les timeouts
 builder.Services.AddDbContext<EYEngageDbContext>(options =>
@@ -237,16 +249,6 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "Bearer"
     });
 });
-builder.Services.AddHttpClient<SocialNotificationService>(client =>
-{
-    var nestjsUrl = builder.Configuration["NestJSService:BaseUrl"];
-    if (!string.IsNullOrEmpty(nestjsUrl))
-    {
-        client.BaseAddress = new Uri(nestjsUrl);
-    }
-    client.Timeout = TimeSpan.FromSeconds(30);
-});
-
 // Configuration Kestrel pour éviter les timeouts
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
@@ -273,6 +275,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCors("AllowFrontend");
+app.UseCors("AllowNestJS");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<SessionValidationMiddleware>();

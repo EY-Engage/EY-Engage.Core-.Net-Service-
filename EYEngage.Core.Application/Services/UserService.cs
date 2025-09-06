@@ -19,14 +19,12 @@ public class UserService : IUserService
     private readonly EYEngageDbContext _db;
     private const long MaxFileSize = 5 * 1024 * 1024;
     private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".gif" };
-    private readonly SocialNotificationService _socialNotificationService;
-    public UserService(UserManager<User> userManager, IWebHostEnvironment env, IEmailService emailService, EYEngageDbContext db,SocialNotificationService socialNotificationService)
+    public UserService(UserManager<User> userManager, IWebHostEnvironment env, IEmailService emailService, EYEngageDbContext db)
     {
         _userManager = userManager;
         _env = env;
         _emailService = emailService;
         _db = db;
-        _socialNotificationService = socialNotificationService;
     }
 
     public async Task<List<UserDto>> GetAllUsersAsync()
@@ -95,8 +93,6 @@ public class UserService : IUserService
 
         await AddToDefaultRole(user);
 
-        // NOTIFICATION: Utilisateur créé
-        await _socialNotificationService.NotifyUserCreated(user);
 
         await _emailService.SendUserCredentials(user.Email, dto.Password);
         return "Utilisateur créé avec succès.";

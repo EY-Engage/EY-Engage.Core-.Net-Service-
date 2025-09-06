@@ -11,17 +11,9 @@ namespace EYEngage.Core.API.Controllers
 {
     [Route("api/[controller]")]
     [Authorize]
-    public class EventController : BaseController
+    public class EventController(IEventService _svc, UserManager<User> _um, GeminiService _gm) : BaseController
     {
-        private readonly IEventService _svc;
-        private readonly UserManager<User> _um;
-        private readonly GeminiService _gm;
-        public EventController(IEventService svc, UserManager<User> um, GeminiService gm)
-        {
-            _svc = svc;
-            _um = um;
-            _gm = gm;
-        }
+
 
         private Guid GetCurrentUserId()
         {

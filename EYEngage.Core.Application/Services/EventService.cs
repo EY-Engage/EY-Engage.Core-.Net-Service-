@@ -18,18 +18,15 @@ namespace EYEngage.Core.Application.Services
         private readonly IWebHostEnvironment _env;
         private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
         private static readonly string[] AllowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
-        private readonly SocialNotificationService _socialNotificationService;
-
         public EventService(
             EYEngageDbContext db,
             IEmailService mail,
-            IWebHostEnvironment env,
-            SocialNotificationService socialNotificationService)
+            IWebHostEnvironment env
+            )
         {
             _db = db;
             _mail = mail;
             _env = env;
-            _socialNotificationService = socialNotificationService;
         }
 
         public async Task<EventDto> CreateEventAsync(Guid organizerId, CreateEventDto dto)
@@ -57,7 +54,6 @@ namespace EYEngage.Core.Application.Services
             await _db.SaveChangesAsync();
 
             // NOTIFICATION: Événement créé
-            await _socialNotificationService.NotifyEventCreated(ev);
 
             return Map(ev, actualOrganizer);
         }
@@ -155,7 +151,6 @@ namespace EYEngage.Core.Application.Services
             // NOTIFICATION: Demande de participation
             if (target == ParticipationStatus.Pending)
             {
-                await _socialNotificationService.NotifyParticipationRequested(p);
             }
         }
 
@@ -173,7 +168,6 @@ namespace EYEngage.Core.Application.Services
             await _db.SaveChangesAsync();
 
             // NOTIFICATION: Participation approuvée
-            await _socialNotificationService.NotifyParticipationApproved(p);
 
             var subject = $"Participation confirmée : {p.Event.Title}";
             var body = $@"
@@ -220,7 +214,6 @@ namespace EYEngage.Core.Application.Services
             await _db.SaveChangesAsync();
 
             // NOTIFICATION: Commentaire créé
-            await _socialNotificationService.NotifyCommentCreated(comment);
         }
 
         public async Task<IReadOnlyList<CommentDto>> GetCommentsAsync(Guid eventId)
@@ -257,13 +250,11 @@ namespace EYEngage.Core.Application.Services
             {
                 ev.ApprovedById = approvedById;
                 // NOTIFICATION: Événement approuvé
-                await _socialNotificationService.NotifyEventApproved(ev);
             }
             else if (status == EventStatus.Rejected)
             {
                 ev.ApprovedById = approvedById;
                 // NOTIFICATION: Événement rejeté
-                await _socialNotificationService.NotifyEventRejected(ev);
             }
 
             await _db.SaveChangesAsync();
@@ -406,9 +397,6 @@ namespace EYEngage.Core.Application.Services
             participation.DecidedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
-
-            // NOTIFICATION: Participation rejetée
-            await _socialNotificationService.NotifyParticipationRejected(participation);
 
             var subject = $"Participation refusée : {participation.Event.Title}";
             var body = $@"

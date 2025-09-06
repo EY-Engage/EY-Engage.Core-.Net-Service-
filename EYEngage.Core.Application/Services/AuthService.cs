@@ -23,17 +23,14 @@ namespace EYEngage.Core.Application.Services
         private readonly UserManager<User> _um;
         private readonly IConfiguration _cfg;
         private readonly IHttpContextAccessor _ctx;
-        private readonly SocialNotificationService _socialNotificationService;
         public AuthService(
             UserManager<User> userManager,
             IConfiguration configuration,
-            IHttpContextAccessor httpContextAccessor,
-            SocialNotificationService socialNotificationService)
+            IHttpContextAccessor httpContextAccessor)
         {
             _um = userManager;
             _cfg = configuration;
             _ctx = httpContextAccessor;
-            _socialNotificationService = socialNotificationService;
         }
 
         public async Task<string> RegisterAsync(RegisterRequestDto req)
@@ -82,13 +79,6 @@ namespace EYEngage.Core.Application.Services
                 user.IsActive = true;
                 user.IsFirstLogin = false;
             }
-
-            // NOTIFICATION: Utilisateur activé (si premier login réussi)
-            if (user.IsActive && !user.IsFirstLogin)
-            {
-                await _socialNotificationService.NotifyUserActivated(user);
-            }
-
             // Générer un nouvel ID de session à chaque login
             user.SessionId = Guid.NewGuid();
             await _um.UpdateAsync(user);
@@ -157,10 +147,6 @@ namespace EYEngage.Core.Application.Services
 
             await _um.UpdateSecurityStampAsync(user);
             await _um.UpdateAsync(user);
-
-            // NOTIFICATION: Utilisateur activé (après changement de mot de passe)
-            await _socialNotificationService.NotifyUserActivated(user);
-
             var roles = (await _um.GetRolesAsync(user)).ToList();
             var newAccess = GenerateAccessToken(user, roles);
             var newRefresh = GenerateRefreshToken();

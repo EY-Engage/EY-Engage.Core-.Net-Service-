@@ -15,16 +15,13 @@ namespace EYEngage.Core.Application.Services
         private readonly IFileStorageService _fileStorage;
         private readonly IEmailService _mailService;
         private readonly GeminiService _geminiService;
-        private readonly SocialNotificationService _socialNotificationService;
         public JobService(EYEngageDbContext db, IFileStorageService fileStorage,
-                         IEmailService mailService, GeminiService geminiService, SocialNotificationService socialNotificationService)
+                         IEmailService mailService, GeminiService geminiService)
         {
             _db = db;
             _fileStorage = fileStorage;
             _mailService = mailService;
-            _geminiService = geminiService;
-            _socialNotificationService = socialNotificationService;
-        }
+            _geminiService = geminiService;        }
 
         public async Task<JobOfferDto> CreateJobOfferAsync(JobOfferDto jobOfferDto, Guid publisherId, Department department)
         {
@@ -49,10 +46,6 @@ namespace EYEngage.Core.Application.Services
 
             _db.JobOffers.Add(jobOffer);
             await _db.SaveChangesAsync();
-
-            // NOTIFICATION: Offre d'emploi créée
-            await _socialNotificationService.NotifyJobCreated(jobOffer);
-
             return MapToDto(jobOffer);
         }
 
@@ -97,9 +90,6 @@ namespace EYEngage.Core.Application.Services
 
             _db.JobApplications.Add(application);
             await _db.SaveChangesAsync();
-
-            // NOTIFICATION: Candidature à un emploi
-            await _socialNotificationService.NotifyJobApplication(application);
         }
         public async Task UpdateJobOfferAsync(JobOfferDto jobOfferDto)
         {
@@ -178,6 +168,9 @@ namespace EYEngage.Core.Application.Services
             var recommender = await _db.Users.FindAsync(recommendedByUserId);
             if (recommender == null) throw new ValidationException("Recommender not found");
 
+            var jobOffer = await _db.JobOffers.FindAsync(recommendationDto.JobOfferId);
+            if (jobOffer == null) throw new ValidationException("Job offer not found");
+
             var candidateEmail = recommendationDto.CandidateEmail;
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == candidateEmail);
             Guid? userId = user?.Id;
@@ -200,6 +193,129 @@ namespace EYEngage.Core.Application.Services
 
             _db.JobApplications.Add(application);
             await _db.SaveChangesAsync();
+
+
+
+            // EMAIL AU CANDIDAT RECOMMANDÉ
+            try
+            {
+                var subject = "Vous avez été recommandé pour un poste chez EY";
+                var body = $@"
+            <html>
+            <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+                <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+                    <div style='background: linear-gradient(135deg, #FFE135 0%, #FFC700 100%); padding: 20px; text-align: center; border-radius: 8px 8px 0 0;'>
+                        <h1 style='margin: 0; color: #000; font-size: 24px;'>Recommandation EY</h1>
+                    </div>
+                    
+                    <div style='background: #fff; padding: 30px; border: 1px solid #ddd; border-radius: 0 0 8px 8px;'>
+                        <h2 style='color: #2C1810; margin-bottom: 20px;'>Bonjour {recommendationDto.CandidateName},</h2>
+                        
+                        <p style='margin-bottom: 15px;'>
+                            Nous avons le plaisir de vous informer que <strong>{recommender.FullName}</strong> 
+                            vous a recommandé pour le poste suivant chez EY :
+                        </p>
+                        
+                        <div style='background: #f8f9fa; padding: 20px; border-left: 4px solid #FFE135; margin: 20px 0;'>
+                            <h3 style='margin: 0 0 10px 0; color: #2C1810;'>{jobOffer.Title}</h3>
+                            <p style='margin: 0; color: #666;'>
+                                <strong>Département :</strong> {jobOffer.Department}<br>
+                                <strong>Lieu :</strong> {jobOffer.Location}<br>
+                                <strong>Niveau d'expérience :</strong> {jobOffer.ExperienceLevel}
+                            </p>
+                        </div>
+                        
+                        <p style='margin-bottom: 15px;'>
+                            Votre candidature a été automatiquement soumise avec les documents fournis par votre recommandeur. 
+                            Nos équipes RH examineront votre profil dans les plus brefs délais.
+                        </p>
+                        
+                        <p style='margin-bottom: 20px;'>
+                            Si vous souhaitez modifier ou compléter votre candidature, vous pouvez vous connecter 
+                            sur notre plateforme EY Engage ou nous contacter directement.
+                        </p>
+                        
+                        <div style='text-align: center; margin: 30px 0;'>
+                            <a href='[LIEN_VERS_PLATEFORME]' 
+                               style='background: #2C1810; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;'>
+                                Voir ma candidature
+                            </a>
+                        </div>
+                        
+                        <p style='color: #666; font-size: 14px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;'>
+                            Nous vous remercions de l'intérêt que vous portez à EY et vous souhaitons 
+                            bonne chance dans le processus de recrutement.
+                        </p>
+                        
+                        <p style='margin-bottom: 0;'>
+                            Cordialement,<br>
+                            <strong>L'équipe Recrutement EY</strong>
+                        </p>
+                    </div>
+                </div>
+            </body>
+            </html>";
+
+                await _mailService.SendEmailAsync(candidateEmail, subject, body);
+            }
+            catch (SmtpException emailEx)
+            {
+                Console.WriteLine($"Erreur lors de l'envoi de l'email au candidat recommandé: {emailEx.Message}");
+                // Note: On ne fait pas échouer la recommandation si l'email échoue
+            }
+
+            // EMAIL AU RECOMMANDEUR (confirmation)
+            try
+            {
+                var confirmationSubject = "Confirmation de recommandation - EY";
+                var confirmationBody = $@"
+            <html>
+            <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+                <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+                    <div style='background: linear-gradient(135deg, #FFE135 0%, #FFC700 100%); padding: 20px; text-align: center; border-radius: 8px 8px 0 0;'>
+                        <h1 style='margin: 0; color: #000; font-size: 24px;'>Recommandation confirmée</h1>
+                    </div>
+                    
+                    <div style='background: #fff; padding: 30px; border: 1px solid #ddd; border-radius: 0 0 8px 8px;'>
+                        <h2 style='color: #2C1810; margin-bottom: 20px;'>Bonjour {recommender.FullName},</h2>
+                        
+                        <p style='margin-bottom: 15px;'>
+                            Votre recommandation a été enregistrée avec succès !
+                        </p>
+                        
+                        <div style='background: #f8f9fa; padding: 20px; border-left: 4px solid #28a745; margin: 20px 0;'>
+                            <h3 style='margin: 0 0 10px 0; color: #2C1810;'>Détails de la recommandation</h3>
+                            <p style='margin: 0; color: #666;'>
+                                <strong>Candidat :</strong> {recommendationDto.CandidateName}<br>
+                                <strong>Poste :</strong> {jobOffer.Title}<br>
+                                <strong>Email du candidat :</strong> {candidateEmail}
+                            </p>
+                        </div>
+                        
+                        <p style='margin-bottom: 15px;'>
+                            Le candidat a été automatiquement notifié de votre recommandation par email. 
+                            Nos équipes RH examineront son profil dans le cadre du processus de recrutement.
+                        </p>
+                        
+                        <p style='color: #666; font-size: 14px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;'>
+                            Merci de contribuer au développement des talents chez EY !
+                        </p>
+                        
+                        <p style='margin-bottom: 0;'>
+                            Cordialement,<br>
+                            <strong>L'équipe EY Engage</strong>
+                        </p>
+                    </div>
+                </div>
+            </body>
+            </html>";
+
+                await _mailService.SendEmailAsync(recommender.Email, confirmationSubject, confirmationBody);
+            }
+            catch (SmtpException emailEx)
+            {
+                Console.WriteLine($"Erreur lors de l'envoi de l'email de confirmation au recommandeur: {emailEx.Message}");
+            }
         }
 
         public async Task<IEnumerable<JobApplicationDto>> GetApplicationsForJobAsync(Guid jobOfferId)
@@ -334,9 +450,6 @@ namespace EYEngage.Core.Application.Services
 
                 application.Status = ApplicationStatus.Selected;
                 await _db.SaveChangesAsync();
-
-                // NOTIFICATION: Entretien programmé
-                await _socialNotificationService.NotifyInterviewScheduled(application, interviewDate, location);
 
                 try
                 {
