@@ -209,7 +209,7 @@ builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
-
+builder.Services.AddScoped<INotificationService, NotificationService>();
 // Services supplémentaires
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<GeminiService>();

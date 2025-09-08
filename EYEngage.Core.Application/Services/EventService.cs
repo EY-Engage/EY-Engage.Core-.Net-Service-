@@ -1,10 +1,12 @@
-﻿using EYEngage.Core.Application.Dto;
+﻿using EYEngage.Core.Application.Common.Exceptions;
+using EYEngage.Core.Application.Dto;
 using EYEngage.Core.Application.Dto.EventDto;
 using EYEngage.Core.Application.InterfacesServices;
 using EYEngage.Core.Domain;
 using EYEngage.Infrastructure;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -18,20 +20,33 @@ namespace EYEngage.Core.Application.Services
         private readonly IWebHostEnvironment _env;
         private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
         private static readonly string[] AllowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+        private readonly INotificationService _notificationService;
+        private readonly UserManager<User> _userManager;
         public EventService(
             EYEngageDbContext db,
             IEmailService mail,
-            IWebHostEnvironment env
-            )
+            IWebHostEnvironment env,
+                INotificationService notificationService, UserManager<User> _um)
+
         {
             _db = db;
             _mail = mail;
             _env = env;
+            _notificationService = notificationService;
+            _userManager = _um;
         }
 
+        // EYEngage.Core.Application/Services/EventService.cs - Méthode CreateEventAsync
         public async Task<EventDto> CreateEventAsync(Guid organizerId, CreateEventDto dto)
         {
             var actualOrganizer = await ResolveUserId(organizerId);
+
+            // Récupérer l'utilisateur organisateur
+            var organizerUser = await _userManager.FindByIdAsync(actualOrganizer.ToString());
+            if (organizerUser == null)
+            {
+                throw new Exception("Organisateur non trouvé");
+            }
 
             string? imagePath = null;
             if (dto.ImageFile != null)
@@ -53,11 +68,80 @@ namespace EYEngage.Core.Application.Services
             _db.Events.Add(ev);
             await _db.SaveChangesAsync();
 
-            // NOTIFICATION: Événement créé
+            try
+            {
+                // Envoyer notification à l'organisateur
+                await _notificationService.SendNotificationAsync(new NotificationDto
+                {
+                    RecipientId = actualOrganizer.ToString(),
+                    RecipientName = organizerUser.FullName,
+                    Type = NotificationTypes.EVENT_CREATED,
+                    Title = "Événement créé avec succès",
+                    Message = $"Votre événement '{ev.Title}' a été créé et est en attente d'approbation",
+                    Priority = NotificationPriorities.MEDIUM,
+                    Metadata = new NotificationMetadata
+                    {
+                        EntityId = ev.Id.ToString(),
+                        EntityType = "event",
+                        ActionUrl = $"/events/{ev.Id}",
+                        ActorId = actualOrganizer.ToString(),
+                        ActorName = organizerUser.FullName,
+                        Department = organizerUser.Department.ToString()
+                    }
+                });
+
+                // Notifier les admins et agents du département de l'organisateur
+                var usersInDepartment = _userManager.Users
+                    .Where(u => u.Department == organizerUser.Department)
+                    .ToList();
+
+                var adminAndAgentUsers = new List<User>();
+                foreach (var user in usersInDepartment)
+                {
+                    var roles = await _userManager.GetRolesAsync(user);
+                    if (roles.Any(r => r == "Admin" || r == "AgentEY"))
+                    {
+                        adminAndAgentUsers.Add(user);
+                    }
+                }
+
+                if (adminAndAgentUsers.Any())
+                {
+                    await _notificationService.SendBulkNotificationsAsync(new BulkNotificationDto
+                    {
+                        Recipients = adminAndAgentUsers.Select(a => new RecipientInfo
+                        {
+                            Id = a.Id.ToString(),
+                            Name = a.FullName
+                        }).ToList(),
+                        Notification = new NotificationData
+                        {
+                            Type = NotificationTypes.EVENT_CREATED,
+                            Title = "Nouvel événement à approuver",
+                            Message = $"{organizerUser.FullName} a créé l'événement '{ev.Title}'",
+                            Priority = NotificationPriorities.HIGH,
+                            Metadata = new NotificationMetadata
+                            {
+                                EntityId = ev.Id.ToString(),
+                                EntityType = "event",
+                                ActionUrl = $"/admin/events/{ev.Id}/review",
+                                ActorId = actualOrganizer.ToString(),
+                                ActorName = organizerUser.FullName,
+                                Department = organizerUser.Department.ToString()
+                            }
+                        }
+                    });
+                }
+            }
+            catch (Exception notificationError)
+            {
+                // Log l'erreur de notification mais ne pas faire échouer la création d'événement
+                // Vous pouvez utiliser votre logger ici
+                Console.WriteLine($"Erreur lors de l'envoi de notification: {notificationError.Message}");
+            }
 
             return Map(ev, actualOrganizer);
         }
-
         private async Task<string> SaveEventImageAsync(IFormFile file)
         {
             ValidateFile(file);
