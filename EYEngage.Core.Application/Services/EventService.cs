@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 
@@ -20,20 +21,21 @@ namespace EYEngage.Core.Application.Services
         private readonly IWebHostEnvironment _env;
         private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
         private static readonly string[] AllowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
-        private readonly INotificationService _notificationService;
         private readonly UserManager<User> _userManager;
+        private readonly ILogger<EventService> _logger;
+
         public EventService(
             EYEngageDbContext db,
             IEmailService mail,
             IWebHostEnvironment env,
-                INotificationService notificationService, UserManager<User> _um)
-
+            UserManager<User> userManager,
+            ILogger<EventService> logger)
         {
             _db = db;
             _mail = mail;
             _env = env;
-            _notificationService = notificationService;
-            _userManager = _um;
+            _userManager = userManager;
+            _logger = logger;
         }
 
         // EYEngage.Core.Application/Services/EventService.cs - Méthode CreateEventAsync
@@ -68,80 +70,9 @@ namespace EYEngage.Core.Application.Services
             _db.Events.Add(ev);
             await _db.SaveChangesAsync();
 
-            try
-            {
-                // Envoyer notification à l'organisateur
-                await _notificationService.SendNotificationAsync(new NotificationDto
-                {
-                    RecipientId = actualOrganizer.ToString(),
-                    RecipientName = organizerUser.FullName,
-                    Type = NotificationTypes.EVENT_CREATED,
-                    Title = "Événement créé avec succès",
-                    Message = $"Votre événement '{ev.Title}' a été créé et est en attente d'approbation",
-                    Priority = NotificationPriorities.MEDIUM,
-                    Metadata = new NotificationMetadata
-                    {
-                        EntityId = ev.Id.ToString(),
-                        EntityType = "event",
-                        ActionUrl = $"/events/{ev.Id}",
-                        ActorId = actualOrganizer.ToString(),
-                        ActorName = organizerUser.FullName,
-                        Department = organizerUser.Department.ToString()
-                    }
-                });
-
-                // Notifier les admins et agents du département de l'organisateur
-                var usersInDepartment = _userManager.Users
-                    .Where(u => u.Department == organizerUser.Department)
-                    .ToList();
-
-                var adminAndAgentUsers = new List<User>();
-                foreach (var user in usersInDepartment)
-                {
-                    var roles = await _userManager.GetRolesAsync(user);
-                    if (roles.Any(r => r == "Admin" || r == "AgentEY"))
-                    {
-                        adminAndAgentUsers.Add(user);
-                    }
-                }
-
-                if (adminAndAgentUsers.Any())
-                {
-                    await _notificationService.SendBulkNotificationsAsync(new BulkNotificationDto
-                    {
-                        Recipients = adminAndAgentUsers.Select(a => new RecipientInfo
-                        {
-                            Id = a.Id.ToString(),
-                            Name = a.FullName
-                        }).ToList(),
-                        Notification = new NotificationData
-                        {
-                            Type = NotificationTypes.EVENT_CREATED,
-                            Title = "Nouvel événement à approuver",
-                            Message = $"{organizerUser.FullName} a créé l'événement '{ev.Title}'",
-                            Priority = NotificationPriorities.HIGH,
-                            Metadata = new NotificationMetadata
-                            {
-                                EntityId = ev.Id.ToString(),
-                                EntityType = "event",
-                                ActionUrl = $"/admin/events/{ev.Id}/review",
-                                ActorId = actualOrganizer.ToString(),
-                                ActorName = organizerUser.FullName,
-                                Department = organizerUser.Department.ToString()
-                            }
-                        }
-                    });
-                }
-            }
-            catch (Exception notificationError)
-            {
-                // Log l'erreur de notification mais ne pas faire échouer la création d'événement
-                // Vous pouvez utiliser votre logger ici
-                Console.WriteLine($"Erreur lors de l'envoi de notification: {notificationError.Message}");
-            }
-
             return Map(ev, actualOrganizer);
         }
+
         private async Task<string> SaveEventImageAsync(IFormFile file)
         {
             ValidateFile(file);
@@ -231,11 +162,6 @@ namespace EYEngage.Core.Application.Services
             }
 
             await _db.SaveChangesAsync();
-
-            // NOTIFICATION: Demande de participation
-            if (target == ParticipationStatus.Pending)
-            {
-            }
         }
 
         public async Task ApproveParticipationAsync(Guid participationId, Guid approvedById)
@@ -250,8 +176,6 @@ namespace EYEngage.Core.Application.Services
             p.DecidedAt = DateTime.UtcNow;
             p.ApprovedById = approvedById;
             await _db.SaveChangesAsync();
-
-            // NOTIFICATION: Participation approuvée
 
             var subject = $"Participation confirmée : {p.Event.Title}";
             var body = $@"
@@ -277,7 +201,6 @@ namespace EYEngage.Core.Application.Services
                 ))
                 .ToListAsync();
         }
-
 
         public async Task CommentAsync(Guid eventId, Guid authorId, string content)
         {
@@ -333,16 +256,15 @@ namespace EYEngage.Core.Application.Services
             if (status == EventStatus.Approved)
             {
                 ev.ApprovedById = approvedById;
-                // NOTIFICATION: Événement approuvé
             }
             else if (status == EventStatus.Rejected)
             {
                 ev.ApprovedById = approvedById;
-                // NOTIFICATION: Événement rejeté
-            }
 
-            await _db.SaveChangesAsync();
+                await _db.SaveChangesAsync();
+            }
         }
+
         // EventService.cs
         public async Task<UserProfileEventsDto> GetUserProfileEventsAsync(Guid userId)
         {
@@ -394,6 +316,7 @@ namespace EYEngage.Core.Application.Services
                 }).ToList()
             };
         }
+
         private EventMiniDto MapToMiniDto(Event e) => new(
             e.Id,
             e.Title,
@@ -588,7 +511,6 @@ namespace EYEngage.Core.Application.Services
             await _db.SaveChangesAsync();
         }
 
-
         public async Task ReactToReplyAsync(Guid replyId, Guid userId, string emoji)
         {
             var actualUser = await ResolveUserId(userId);
@@ -612,6 +534,7 @@ namespace EYEngage.Core.Application.Services
 
             await _db.SaveChangesAsync();
         }
+
         public async Task DeleteReplyAsync(Guid replyId, Guid userId)
         {
             var reply = await _db.CommentReplies
@@ -645,6 +568,7 @@ namespace EYEngage.Core.Application.Services
                 userProfilePicture = r.User.ProfilePicture
             });
         }
+
         public async Task DeleteEventAsync(Guid eventId, Guid requesterId)
         {
             var existingEvent = await _db.Events
@@ -787,7 +711,6 @@ namespace EYEngage.Core.Application.Services
             );
         }
 
-
         public async Task<IEnumerable<EventTrendDto>> GetEventTrendsAsync(Guid? userId = null, string? department = null)
         {
             var query = _db.Events
@@ -817,7 +740,6 @@ namespace EYEngage.Core.Application.Services
                 }
             }
 
-
             var events = await query.ToListAsync();
 
             return events
@@ -833,7 +755,6 @@ namespace EYEngage.Core.Application.Services
                 .OrderByDescending(t => t.Date)
                 .ToList();
         }
-
 
         private EventDto Map(Event e, Guid currentUserId) => new(
             e.Id,

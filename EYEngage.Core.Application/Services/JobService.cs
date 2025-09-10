@@ -15,13 +15,15 @@ namespace EYEngage.Core.Application.Services
         private readonly IFileStorageService _fileStorage;
         private readonly IEmailService _mailService;
         private readonly GeminiService _geminiService;
+
         public JobService(EYEngageDbContext db, IFileStorageService fileStorage,
                          IEmailService mailService, GeminiService geminiService)
         {
             _db = db;
             _fileStorage = fileStorage;
             _mailService = mailService;
-            _geminiService = geminiService;        }
+            _geminiService = geminiService;
+        }
 
         public async Task<JobOfferDto> CreateJobOfferAsync(JobOfferDto jobOfferDto, Guid publisherId, Department department)
         {
@@ -91,6 +93,7 @@ namespace EYEngage.Core.Application.Services
             _db.JobApplications.Add(application);
             await _db.SaveChangesAsync();
         }
+
         public async Task UpdateJobOfferAsync(JobOfferDto jobOfferDto)
         {
             var jobOffer = await _db.JobOffers.FindAsync(jobOfferDto.Id);
@@ -193,8 +196,6 @@ namespace EYEngage.Core.Application.Services
 
             _db.JobApplications.Add(application);
             await _db.SaveChangesAsync();
-
-
 
             // EMAIL AU CANDIDAT RECOMMANDÉ
             try
