@@ -1,0 +1,182 @@
+@startuml EYEngage Class Diagram
+
+!define ENTITY_COLOR #E8F4FD
+!define ENUM_COLOR #FFF2CC
+
+' Enums
+enum Department <<enumeration>> {
+  Assurance
+  Consulting
+  StrategyAndTransactions
+  Tax
+}
+
+enum EventStatus <<enumeration>> {
+  Draft
+  Pending
+  Approved
+  Rejected
+}
+
+enum ParticipationStatus <<enumeration>> {
+  Pending
+  Approved
+  Rejected
+}
+
+enum ApplicationStatus <<enumeration>> {
+  Pending
+  Reviewed
+  Selected
+  Rejected
+}
+
+enum JobType <<enumeration>> {
+  FullTime
+  PartTime
+  Contract
+  Internship
+}
+
+' Main Entities
+class User {
+  +Id: Guid
+  +FullName: string
+  +Email: string
+  +ProfilePicture: string
+  +Fonction: string
+  +Department: Department
+  +Sector: string
+  +PhoneNumber: string
+  +IsActive: bool
+  +IsFirstLogin: bool
+  +SessionId: Guid?
+  +CreatedAt: DateTime
+  +UpdatedAt: DateTime
+}
+
+class Event {
+  +Id: Guid
+  +Title: string
+  +Description: string
+  +Date: DateTime
+  +Location: string
+  +Status: EventStatus
+  +ImagePath: string
+  +OrganizerId: Guid?
+  +ApprovedById: Guid?
+}
+
+class EventParticipation {
+  +Id: Guid
+  +EventId: Guid?
+  +UserId: Guid?
+  +ApprovedById: Guid?
+  +Status: ParticipationStatus
+  +RequestedAt: DateTime
+  +DecidedAt: DateTime?
+}
+
+class EventInterest {
+  +EventId: Guid?
+  +UserId: Guid?
+  +InterestedAt: DateTime
+}
+
+class Comment {
+  +Id: Guid
+  +EventId: Guid
+  +AuthorId: Guid?
+  +Content: string
+  +CreatedAt: DateTime
+}
+
+class CommentReaction {
+  +Id: Guid
+  +CommentId: Guid?
+  +UserId: Guid?
+  +Emoji: string
+  +CreatedAt: DateTime
+}
+
+class CommentReply {
+  +Id: Guid
+  +CommentId: Guid?
+  +AuthorId: Guid?
+  +Content: string
+  +CreatedAt: DateTime
+}
+
+class CommentReplyReaction {
+  +Id: Guid
+  +ReplyId: Guid?
+  +UserId: Guid?
+  +Emoji: string
+  +CreatedAt: DateTime
+}
+
+class JobOffer {
+  +Id: Guid
+  +Title: string
+  +Description: string
+  +KeySkills: string
+  +ExperienceLevel: string
+  +Location: string
+  +PublishDate: DateTime
+  +CloseDate: DateTime?
+  +IsActive: bool
+  +PublisherId: Guid
+  +Department: Department
+  +JobType: JobType
+}
+
+class JobApplication {
+  +Id: Guid
+  +JobOfferId: Guid
+  +UserId: Guid?
+  +CandidateName: string
+  +CandidateEmail: string
+  +CandidatePhone: string
+  +CoverLetter: string
+  +ResumeFilePath: string
+  +AppliedAt: DateTime
+  +Status: ApplicationStatus
+  +IsRecommended: bool
+  +IsPreSelected: bool
+  +RecommendedByUserId: Guid?
+  +Score: double
+  +Justification: string
+}
+
+class Role {
+  +Id: Guid
+  +Name: string
+}
+
+' Relations principales
+User ||--o{ Event : organizes
+User ||--o{ Event : approves
+User ||--o{ EventParticipation : participates
+User ||--o{ EventInterest : interested
+User ||--o{ Comment : writes
+User ||--o{ CommentReaction : reacts
+User ||--o{ CommentReply : replies
+User ||--o{ CommentReplyReaction : reacts_to_reply
+User ||--o{ JobOffer : publishes
+User ||--o{ JobApplication : applies
+User ||--o{ JobApplication : recommends
+
+Event ||--o{ EventParticipation : has_participations
+Event ||--o{ EventInterest : has_interests
+Event ||--o{ Comment : has_comments
+
+Comment ||--o{ CommentReaction : has_reactions
+Comment ||--o{ CommentReply : has_replies
+
+CommentReply ||--o{ CommentReplyReaction : has_reactions
+
+JobOffer ||--o{ JobApplication : receives_applications
+
+User }o--|| Department : belongs_to
+
+@enduml
