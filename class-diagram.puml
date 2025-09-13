@@ -1,0 +1,295 @@
+@startuml EY-Engage-Class-Diagram
+
+!theme plain
+skinparam backgroundColor #F8F9FA
+skinparam classBackgroundColor #FFFFFF
+skinparam classBorderColor #E1E5E9
+skinparam classHeaderBackgroundColor #2C1810
+skinparam classHeaderFontColor #FFFFFF
+skinparam classFontSize 10
+skinparam classAttributeFontSize 9
+skinparam classStereotypeFontSize 8
+
+title EY Engage - Diagramme de Classes
+note top : Système de gestion d'événements et de recrutement EY
+
+' ===== ENUMS =====
+enum Department {
+    Assurance
+    Consulting
+    StrategyAndTransactions
+    Tax
+}
+
+enum EventStatus {
+    Draft
+    Pending
+    Approved
+    Rejected
+}
+
+enum ParticipationStatus {
+    Pending
+    Approved
+    Rejected
+}
+
+enum ApplicationStatus {
+    Pending
+    Reviewed
+    Selected
+    Rejected
+}
+
+enum JobType {
+    FullTime
+    PartTime
+    Contract
+    Internship
+}
+
+' ===== CLASSES PRINCIPALES =====
+
+class User {
+    +Id : Guid
+    +FullName : string
+    +Email : string
+    +UserName : string
+    +ProfilePicture : string?
+    +PhoneNumber : string?
+    +Fonction : string
+    +Department : Department
+    +Sector : string
+    +CreatedAt : DateTime
+    +UpdatedAt : DateTime
+    +RefreshToken : string?
+    +RefreshTokenExpiry : DateTime?
+    +IsActive : bool
+    +IsFirstLogin : bool
+    +SessionId : Guid?
+    --
+    +OrganizedEvents : ICollection<Event>
+    +EventParticipations : ICollection<EventParticipation>
+    +EventInterests : ICollection<EventInterest>
+    +Comments : ICollection<Comment>
+    +CommentReplies : ICollection<CommentReply>
+    +CommentReactions : ICollection<CommentReaction>
+    +CommentReplyReactions : ICollection<CommentReplyReaction>
+}
+
+class Role {
+    +Id : Guid
+    +Name : string
+    +NormalizedName : string
+    +ConcurrencyStamp : string
+}
+
+class Event {
+    +Id : Guid
+    +Title : string
+    +Description : string
+    +Date : DateTime
+    +Location : string
+    +Status : EventStatus
+    +ImagePath : string?
+    +OrganizerId : Guid?
+    +ApprovedById : Guid?
+    --
+    +Organizer : User?
+    +ApprovedBy : User?
+    +Participations : ICollection<EventParticipation>
+    +Comments : ICollection<Comment>
+    +Interests : ICollection<EventInterest>
+}
+
+class EventParticipation {
+    +Id : Guid
+    +EventId : Guid?
+    +UserId : Guid?
+    +ApprovedById : Guid?
+    +Status : ParticipationStatus
+    +RequestedAt : DateTime
+    +DecidedAt : DateTime?
+    --
+    +Event : Event?
+    +User : User?
+    +ApprovedBy : User?
+}
+
+class EventInterest {
+    +EventId : Guid?
+    +UserId : Guid?
+    +InterestedAt : DateTime
+    --
+    +Event : Event?
+    +User : User?
+}
+
+class Comment {
+    +Id : Guid
+    +EventId : Guid
+    +AuthorId : Guid?
+    +Content : string
+    +CreatedAt : DateTime
+    --
+    +Event : Event?
+    +Author : User
+    +Reactions : ICollection<CommentReaction>
+    +Replies : ICollection<CommentReply>
+}
+
+class CommentReaction {
+    +Id : Guid
+    +CommentId : Guid?
+    +UserId : Guid?
+    +Emoji : string
+    +CreatedAt : DateTime
+    --
+    +Comment : Comment?
+    +User : User?
+}
+
+class CommentReply {
+    +Id : Guid
+    +CommentId : Guid?
+    +AuthorId : Guid?
+    +Content : string
+    +CreatedAt : DateTime
+    --
+    +Comment : Comment?
+    +Author : User?
+    +Reactions : ICollection<CommentReplyReaction>
+}
+
+class CommentReplyReaction {
+    +Id : Guid
+    +ReplyId : Guid?
+    +UserId : Guid?
+    +Emoji : string
+    +CreatedAt : DateTime
+    --
+    +Reply : CommentReply?
+    +User : User?
+}
+
+class JobOffer {
+    +Id : Guid
+    +Title : string
+    +Description : string
+    +KeySkills : string
+    +ExperienceLevel : string
+    +Location : string
+    +PublishDate : DateTime
+    +CloseDate : DateTime?
+    +IsActive : bool
+    +IsInternalOnly : bool
+    +PublisherId : Guid
+    +Department : Department
+    +JobType : JobType
+    --
+    +Publisher : User
+    +Applications : ICollection<JobApplication>
+}
+
+class JobApplication {
+    +Id : Guid
+    +JobOfferId : Guid
+    +UserId : Guid?
+    +CandidateName : string?
+    +CandidateEmail : string?
+    +CandidatePhone : string?
+    +CoverLetter : string?
+    +ResumeFilePath : string?
+    +AppliedAt : DateTime
+    +Status : ApplicationStatus
+    +IsRecommended : bool
+    +IsPreSelected : bool
+    +RecommendedByUserId : Guid?
+    +Score : double
+    +Justification : string?
+    --
+    +JobOffer : JobOffer
+    +User : User?
+    +RecommendedBy : User?
+}
+
+' ===== RELATIONS =====
+
+' User Relations
+User ||--o{ Event : "organizes (OrganizerId)"
+User ||--o{ Event : "approves (ApprovedById)"
+User ||--o{ EventParticipation : "participates"
+User ||--o{ EventInterest : "interested in"
+User ||--o{ Comment : "authors"
+User ||--o{ CommentReply : "replies"
+User ||--o{ CommentReaction : "reacts to comments"
+User ||--o{ CommentReplyReaction : "reacts to replies"
+User ||--o{ JobOffer : "publishes"
+User ||--o{ JobApplication : "applies"
+User ||--o{ JobApplication : "recommends (RecommendedBy)"
+User }|--|| Department : "belongs to"
+
+' Event Relations
+Event ||--o{ EventParticipation : "has participations"
+Event ||--o{ EventInterest : "has interests"
+Event ||--o{ Comment : "has comments"
+Event }|--|| EventStatus : "has status"
+
+' Participation Relations
+EventParticipation }|--|| ParticipationStatus : "has status"
+EventParticipation }o--|| Event : "for event"
+EventParticipation }o--|| User : "by user"
+EventParticipation }o--o| User : "approved by"
+
+' Interest Relations
+EventInterest }o--|| Event : "for event"
+EventInterest }o--|| User : "by user"
+
+' Comment Relations
+Comment }o--|| Event : "on event"
+Comment }o--|| User : "by author"
+Comment ||--o{ CommentReaction : "has reactions"
+Comment ||--o{ CommentReply : "has replies"
+
+' Comment Reaction Relations
+CommentReaction }o--|| Comment : "reacts to"
+CommentReaction }o--|| User : "by user"
+
+' Comment Reply Relations
+CommentReply }o--|| Comment : "replies to"
+CommentReply }o--|| User : "by author"
+CommentReply ||--o{ CommentReplyReaction : "has reactions"
+
+' Comment Reply Reaction Relations
+CommentReplyReaction }o--|| CommentReply : "reacts to"
+CommentReplyReaction }o--|| User : "by user"
+
+' Job Relations
+JobOffer }|--|| Department : "for department"
+JobOffer }|--|| JobType : "has type"
+JobOffer }o--|| User : "published by"
+JobOffer ||--o{ JobApplication : "receives applications"
+
+' Job Application Relations
+JobApplication }o--|| JobOffer : "applies to"
+JobApplication }o--o| User : "by user"
+JobApplication }o--o| User : "recommended by"
+JobApplication }|--|| ApplicationStatus : "has status"
+
+' Identity Relations (simplified)
+User }|--o{ Role : "has roles"
+
+' ===== NOTES =====
+note right of User : Hérite de IdentityUser<Guid>\nGestion complète des utilisateurs\navec authentification et autorisation
+
+note right of Event : Événements organisés par les utilisateurs\navec système d'approbation\net gestion des participations
+
+note right of JobOffer : Offres d'emploi internes\navec système de candidature\net recommandations
+
+note bottom of Comment : Système de commentaires\navec réactions et réponses\npour les événements
+
+note top of EventParticipation : Gestion des demandes\nde participation aux événements\navec approbation requise
+
+note top of JobApplication : Candidatures avec support\nde recommandations internes\net scoring automatique par IA
+
+@enduml
