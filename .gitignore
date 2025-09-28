@@ -1,37 +1,69 @@
-# Fichiers et dossiers générés par Visual Studio
+## Fichiers et dossiers générés par Visual Studio ##
 .vs/
 *.user
 *.suo
 *.vscode/
 
-# Build et binaires
+## Build et binaires ##
 bin/
 obj/
 out/
+wwwroot/
 
-# Paquets NuGet et cache
+## Migrations et bases de données locales ##
+Migrations/
+*.db
+*.mdf
+*.ldf
+
+## Paquets NuGet et cache ##
 packages/
 *.nupkg
 project.lock.json
 project.assets.json
+
+## Logs et fichiers temporaires ##
 logs/
 *.log
-
-# Fichiers de configuration de l'environnement local
-*.local.settings.json
-appsettings.Development.json
-
-# Fichiers de déploiement et de configuration
-.DS_Store
-Thumbs.db
-
-# Fichiers temporaires de Visual Studio
 *.tlog
 *.lastcodeanalysissucceeded
 
-# Fichiers de dépendances
+## Fichiers de configuration de l'environnement local ##
+*.local.settings.json
+appsettings.Development.json
+appsettings.local.json
+
+## Fichiers système ##
+.DS_Store
+Thumbs.db
+*.tmp
+
+## Fichiers de dépendances front-end ##
 node_modules/
 bower_components/
+npm-debug.log*
 
-# Fichiers de logs
-*.log
+## Fichiers de déploiement ##
+publish/
+*.pubxml
+
+## Fichiers de projet temporaires ##
+_ReSharper.*
+*.resharper
+
+## Fichiers de test ##
+TestResults/
+*.coverage
+*.coveragexml
+
+## Fichiers de backup ##
+*.backup
+*.bak
+
+## Fichiers spécifiques à votre projet ##
+# Backup files comme mentionné dans votre structure
+*Backup*
+*backup*
+
+# Fichiers de projet backup spécifiques
+EYEngage - BackupCore.API.csproj
