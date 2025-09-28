@@ -164,6 +164,8 @@ namespace EYEngage.Core.Application.Services
             await _db.SaveChangesAsync();
         }
 
+        // Dans EventService.cs - Remplacer les méthodes d'envoi d'email par ces versions :
+
         public async Task ApproveParticipationAsync(Guid participationId, Guid approvedById)
         {
             var p = await _db.EventParticipations
@@ -179,11 +181,79 @@ namespace EYEngage.Core.Application.Services
 
             var subject = $"Participation confirmée : {p.Event.Title}";
             var body = $@"
-                Bonjour {p.User.FullName},<br/>
-                Vous êtes accepté·e à l'événement <b>{p.Event.Title}</b> du {p.Event.Date:dd/MM/yyyy} à {p.Event.Location}.<br/>
-                Cordialement,<br/>L'équipe EY Engage";
+        <h2 style='color:#2C1810; margin-bottom:20px;'>Bonjour {p.User.FullName},</h2>
+        
+        <p style='font-size:16px; line-height:1.6;'>
+            Nous avons le plaisir de vous confirmer que votre participation à l'événement suivant a été acceptée :
+        </p>
+        
+        <div style='background-color:#f8f9fa; padding:20px; border-left:4px solid #28a745; margin:20px 0;'>
+            <h3 style='margin:0 0 10px 0; color:#2C1810;'>{p.Event.Title}</h3>
+            <p style='margin:5px 0; color:#666;'>
+                <strong>📅 Date :</strong> {p.Event.Date:dd/MM/yyyy}<br>
+                <strong>📍 Lieu :</strong> {p.Event.Location}
+            </p>
+        </div>
+        
+        <p style='font-size:14px; color:#666;'>
+            N'oubliez pas de noter cette date dans votre agenda. Nous avons hâte de vous y voir !
+        </p>
+        
+        <hr style='border:none; border-top:1px solid #eee; margin:30px 0;'/>
+        
+        <p style='font-size:14px; color:#666; margin-bottom:0;'>
+            Cordialement,<br/>
+            <strong>L'équipe EY Engage</strong>
+        </p>";
 
             await _mail.SendEmailAsync(p.User.Email, subject, body);
+        }
+
+        public async Task RejectParticipationAsync(Guid participationId)
+        {
+            var participation = await _db.EventParticipations
+                                         .Include(p => p.User)
+                                         .Include(p => p.Event)
+                                         .Include(p => p.ApprovedBy)
+                                         .FirstOrDefaultAsync(p => p.Id == participationId);
+
+            if (participation == null)
+                throw new Exception("Demande non trouvée");
+
+            participation.Status = ParticipationStatus.Rejected;
+            participation.DecidedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+
+            var subject = $"Participation refusée : {participation.Event.Title}";
+            var body = $@"
+        <h2 style='color:#2C1810; margin-bottom:20px;'>Bonjour {participation.User.FullName},</h2>
+        
+        <p style='font-size:16px; line-height:1.6;'>
+            Nous vous informons que votre demande de participation à l'événement suivant n'a malheureusement pas pu être acceptée :
+        </p>
+        
+        <div style='background-color:#f8f9fa; padding:20px; border-left:4px solid #dc3545; margin:20px 0;'>
+            <h3 style='margin:0 0 10px 0; color:#2C1810;'>{participation.Event.Title}</h3>
+            <p style='margin:5px 0; color:#666;'>
+                <strong>📅 Date :</strong> {participation.Event.Date:dd/MM/yyyy}<br>
+                <strong>📍 Lieu :</strong> {participation.Event.Location}
+            </p>
+        </div>
+        
+        <p style='font-size:14px; color:#666;'>
+            Le nombre de places étant limité, nous n'avons pas pu retenir toutes les candidatures. 
+            Nous vous encourageons à postuler aux prochains événements organisés par EY Engage.
+        </p>
+        
+        <hr style='border:none; border-top:1px solid #eee; margin:30px 0;'/>
+        
+        <p style='font-size:14px; color:#666; margin-bottom:0;'>
+            Cordialement,<br/>
+            <strong>L'équipe EY Engage</strong>
+        </p>";
+
+            await _mail.SendEmailAsync(participation.User.Email, subject, body);
         }
 
         public async Task<IReadOnlyList<ParticipationRequestDto>> GetParticipationRequestsAsync(Guid eventId)
@@ -389,31 +459,7 @@ namespace EYEngage.Core.Application.Services
                     p.UserId == userId);
         }
 
-        public async Task RejectParticipationAsync(Guid participationId)
-        {
-            var participation = await _db.EventParticipations
-                                         .Include(p => p.User)
-                                         .Include(p => p.Event)
-                                         .Include(p => p.ApprovedBy)
-                                         .FirstOrDefaultAsync(p => p.Id == participationId);
-
-            if (participation == null)
-                throw new Exception("Demande non trouvée");
-
-            participation.Status = ParticipationStatus.Rejected;
-            participation.DecidedAt = DateTime.UtcNow;
-
-            await _db.SaveChangesAsync();
-
-            var subject = $"Participation refusée : {participation.Event.Title}";
-            var body = $@"
-        Bonjour {participation.User.FullName},<br/>
-        Votre demande de participation à l'événement <b>{participation.Event.Title}</b> a été <span style='color:red;'>refusée</span>.<br/>
-        Cordialement,<br/>L'équipe EY Engage";
-
-            await _mail.SendEmailAsync(participation.User.Email, subject, body);
-        }
-
+ 
         public async Task ReactToCommentAsync(Guid commentId, Guid userId, string emoji)
         {
             var actualUser = await ResolveUserId(userId);

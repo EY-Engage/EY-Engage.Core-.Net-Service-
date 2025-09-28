@@ -42,13 +42,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\images\" />
+    <Folder Include="wwwroot\NewFolder\" />
   </ItemGroup>
-	<ItemGroup>
-		<None Update="wwwroot\images\ey-logo.png">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
-	</ItemGroup>
 
   <ProjectExtensions><VisualStudio><UserProperties appsettings_1json__JsonSchema="https://json.schemastore.org/appsscript.json" /></VisualStudio></ProjectExtensions>
 
