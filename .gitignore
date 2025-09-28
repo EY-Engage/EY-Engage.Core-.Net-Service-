@@ -10,11 +10,10 @@ obj/
 out/
 wwwroot/
 
-## Migrations et bases de données locales ##
-Migrations/
-*.db
-*.mdf
-*.ldf
+## Migrations Entity Framework ##
+**/Migrations/
+!**/Migrations/*.cs
+FYEngageCoreInfrastructure/Migrations/
 
 ## Paquets NuGet et cache ##
 packages/
@@ -59,11 +58,4 @@ TestResults/
 ## Fichiers de backup ##
 *.backup
 *.bak
-
-## Fichiers spécifiques à votre projet ##
-# Backup files comme mentionné dans votre structure
 *Backup*
-*backup*
-
-# Fichiers de projet backup spécifiques
-EYEngage - BackupCore.API.csproj
